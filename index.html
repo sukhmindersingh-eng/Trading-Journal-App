@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pro Trading System</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#6366f1">
+
+<link rel="apple-touch-icon" href="icon.PNG">
+<link rel="apple-touch-icon" sizes="180x180" href="icon.PNG">
+<link rel="manifest" href="manifest.json">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+ margin:0;
+ font-family:-apple-system;
+ background:linear-gradient(135deg,#eef2ff,#f8fafc);
+}
+
+.header {
+ text-align:center;
+ padding:15px;
+ font-weight:600;
+ font-size:18px;
+ color:#4f46e5;
+}
+
+.screen { display:none; padding:12px; }
+.active { display:block; }
+
+.card {
+ backdrop-filter:blur(12px);
+ background:rgba(255,255,255,0.7);
+ padding:14px;
+ border-radius:18px;
+ margin-bottom:12px;
+ box-shadow:0 4px 12px rgba(0,0,0,0.05);
+}
+
+.grid {
+ display:grid;
+ grid-template-columns:1fr 1fr;
+ gap:10px;
+}
+
+input, textarea {
+ padding:10px;
+ border-radius:12px;
+ border:none;
+ background:#f1f5f9;
+}
+
+button {
+ padding:14px;
+ border:none;
+ border-radius:16px;
+ margin-top:8px;
+ font-weight:500;
+}
+
+.btn1 { background:#c7d2fe; }
+.btn2 { background:#bbf7d0; }
+.btn3 { background:#fde68a; }
+
+.nav {
+ position:fixed;
+ bottom:0;
+ width:100%;
+ display:flex;
+ background:white;
+}
+
+.nav button { flex:1; }
+</style>
+</head>
+
+<body>
+
+<div class="header">💼 Pro Trading System</div>
+
+<!-- DASHBOARD -->
+<div id="dash" class="screen active">
+
+<div class="card">
+P&L: <b id="pl">0</b><br>
+Win%: <b id="win">0</b><br>
+Trades: <b id="count">0</b><br>
+Max DD: <b id="dd">0</b><br>
+RR: <b id="rr">0</b>
+</div>
+
+<div class="card">
+<h3>🧠 AI Coach</h3>
+<p id="coach"></p>
+Score: <b id="score">0</b>
+</div>
+
+<div class="card"><canvas id="equity"></canvas></div>
+<div class="card"><canvas id="ddChart"></canvas></div>
+<div class="card"><canvas id="daily"></canvas></div>
+<div class="card"><canvas id="winChart"></canvas></div>
+
+</div>
+
+<!-- ADD -->
+<div id="add" class="screen">
+<div class="card">
+
+<div class="grid">
+<input type="date" id="date">
+<input type="number" id="strike" placeholder="Strike">
+<input type="number" id="lot" placeholder="Lot (50)">
+<input type="number" id="buy" placeholder="Buy">
+<input type="number" id="sell" placeholder="Sell">
+<textarea id="notes" placeholder="Notes"></textarea>
+</div>
+
+<button class="btn2" onclick="addTrade()">Add Trade</button>
+<button class="btn1" onclick="exportData()">Export</button>
+<button class="btn3" onclick="clearAll()">Reset</button>
+
+</div>
+</div>
+
+<div class="nav">
+<button onclick="show('dash')">📊</button>
+<button onclick="show('add')">➕</button>
+</div>
+
+<script>
+let trades = JSON.parse(localStorage.getItem("t"))||[];
+
+function show(id){
+ document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+}
+
+function addTrade(){
+ let t={
+  date:date.value,
+  pl:(sell.value-buy.value)*(lot.value||50)
+ };
+ trades.push(t);
+ localStorage.setItem("t",JSON.stringify(trades));
+ render();
+}
+
+function render(){
+ let total=0, win=0, equity=[], ddArr=[], peak=0, dd=0;
+ let daily={}, wins=[], losses=[];
+
+ trades.forEach(t=>{
+  total+=t.pl;
+  equity.push(total);
+
+  if(t.pl>0){ win++; wins.push(t.pl); }
+  else losses.push(t.pl);
+
+  daily[t.date]=(daily[t.date]||0)+t.pl;
+
+  if(total>peak) peak=total;
+  let d=peak-total;
+  ddArr.push(d);
+  if(d>dd) dd=d;
+ });
+
+ pl.innerText=total;
+ count.innerText=trades.length;
+ win.innerText=((win/trades.length)*100||0).toFixed(0);
+ ddEl=document.getElementById("dd");
+ ddEl.innerText=dd;
+
+ let avgWin = wins.reduce((a,b)=>a+b,0)/wins.length||0;
+ let avgLoss = losses.reduce((a,b)=>a+b,0)/losses.length||0;
+ rr.innerText=(Math.abs(avgWin/avgLoss)||0).toFixed(2);
+
+ ai();
+
+ new Chart(equity,{type:"line",data:{labels:trades.map(t=>t.date),datasets:[{data:equity}]}});
+
+ new Chart(ddChart,{type:"line",data:{labels:trades.map(t=>t.date),datasets:[{data:ddArr}]}});
+
+ new Chart(daily,{type:"bar",data:{labels:Object.keys(daily),datasets:[{data:Object.values(daily)}]}});
+
+ new Chart(winChart,{type:"pie",data:{labels:["Win","Loss"],datasets:[{data:[win,trades.length-win]}]}});
+}
+
+function ai(){
+ let score=100, msg=[];
+
+ let last3=trades.slice(-3);
+ if(last3.every(t=>t.pl<0)){
+  msg.push("🚨 3 losses in a row — STOP trading");
+  score-=30;
+ }
+
+ if(trades.length>5 && trades[trades.length-1].pl<0){
+  msg.push("Avoid revenge trading");
+  score-=10;
+ }
+
+ coach.innerHTML=msg.join("<br>");
+ document.getElementById("score").innerText=score;
+}
+
+function exportData(){
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob([JSON.stringify(trades)]));
+ a.download="trades.json";
+ a.click();
+}
+
+function clearAll(){
+ trades=[];
+ localStorage.clear();
+ render();
+}
+
+render();
+
+if ('serviceWorker' in navigator) {
+ navigator.serviceWorker.register('sw.js');
+}
+</script>
+
+</body>
+</html>
