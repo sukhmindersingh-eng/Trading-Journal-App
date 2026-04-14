@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Nifty Options Journal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 8px;
+      border: none;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #22c55e;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    .profit { color: #22c55e; }
+    .loss { color: #ef4444; }
+  </style>
+</head>
+
+<body>
+
+<h2>📊 Nifty Options Journal</h2>
+
+<div class="card">
+  <input type="date" id="date">
+
+  <input type="number" id="strike" placeholder="Strike Price (e.g. 22500)">
+
+  <select id="type">
+    <option value="CE">Call (CE)</option>
+    <option value="PE">Put (PE)</option>
+  </select>
+
+  <input type="number" id="entry" placeholder="Entry Premium">
+  <input type="number" id="exit" placeholder="Exit Premium">
+  <input type="number" id="lot" placeholder="Lot Size (e.g. 50)">
+
+  <input type="text" id="notes" placeholder="Notes">
+
+  <button onclick="saveTrade()">Save Trade</button>
+</div>
+
+<div class="card">
+  <h3>📈 Performance</h3>
+  <p>Total Trades: <span id="total">0</span></p>
+  <p>Win Rate: <span id="winrate">0%</span></p>
+  <p>Total P&L: ₹<span id="pnl">0</span></p>
+</div>
+
+<div class="card">
+  <h3>📋 Trades</h3>
+  <ul id="list"></ul>
+</div>
+
+<script>
+function saveTrade() {
+  let date = document.getElementById("date").value;
+  let strike = document.getElementById("strike").value;
+  let type = document.getElementById("type").value;
+  let entry = parseFloat(document.getElementById("entry").value);
+  let exit = parseFloat(document.getElementById("exit").value);
+  let lot = parseFloat(document.getElementById("lot").value);
+  let notes = document.getElementById("notes").value;
+
+  let pnl = (exit - entry) * lot;
+
+  let trade = { date, strike, type, entry, exit, lot, pnl, notes };
+
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+  trades.push(trade);
+
+  localStorage.setItem("trades", JSON.stringify(trades));
+
+  displayTrades();
+}
+
+function displayTrades() {
+  let list = document.getElementById("list");
+  list.innerHTML = "";
+
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+
+  let total = trades.length;
+  let wins = 0;
+  let totalPnl = 0;
+
+  trades.forEach(t => {
+    let li = document.createElement("li");
+
+    let resultClass = t.pnl >= 0 ? "profit" : "loss";
+    if (t.pnl > 0) wins++;
+
+    totalPnl += t.pnl;
+
+    li.innerHTML = `
+      ${t.date} | ${t.strike} ${t.type}  
+      | Entry: ${t.entry} → Exit: ${t.exit}  
+      | Lot: ${t.lot}  
+      | <span class="${resultClass}">₹${t.pnl}</span>  
+      | ${t.notes}
+    `;
+
+    list.appendChild(li);
+  });
+
+  let winrate = total ? ((wins / total) * 100).toFixed(1) : 0;
+
+  document.getElementById("total").innerText = total;
+  document.getElementById("winrate").innerText = winrate + "%";
+  document.getElementById("pnl").innerText = totalPnl;
+}
+
+displayTrades();
+</script>
+
+</body>
+</html>
