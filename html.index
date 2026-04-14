@@ -1,146 +1,113 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Nifty Options Journal</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <style>
-    body {
-      font-family: Arial;
-      background: #0f172a;
-      color: white;
-      padding: 20px;
-    }
-
-    h2 {
-      text-align: center;
-    }
-
-    .card {
-      background: #1e293b;
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 15px;
-    }
-
-    input, select {
-      width: 100%;
-      padding: 10px;
-      margin: 5px 0;
-      border-radius: 8px;
-      border: none;
-    }
-
-    button {
-      width: 100%;
-      padding: 12px;
-      background: #22c55e;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-
-    .profit { color: #22c55e; }
-    .loss { color: #ef4444; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Journal</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
+    <h1>Trading Journal</h1>
+    <form id="tradeForm">
+        <label for="tradeType">Trade Type:</label>
+        <select id="tradeType" required>
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
+        </select>
 
-<h2>📊 Nifty Options Journal</h2>
+        <label for="amount">Amount (USD):</label>
+        <input type="number" id="amount" required min="0" step="0.01">
 
-<div class="card">
-  <input type="date" id="date">
+        <label for="date">Trade Date:</label>
+        <input type="date" id="date" required>
 
-  <input type="number" id="strike" placeholder="Strike Price (e.g. 22500)">
+        <button type="submit">Add Trade</button>
+        <button type="button" id="clearForm">Clear</button>
+    </form>
 
-  <select id="type">
-    <option value="CE">Call (CE)</option>
-    <option value="PE">Put (PE)</option>
-  </select>
+    <table id="tradeTable">
+        <thead>
+            <tr>
+                <th>Trade Type</th>
+                <th>Amount (USD)</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 
-  <input type="number" id="entry" placeholder="Entry Premium">
-  <input type="number" id="exit" placeholder="Exit Premium">
-  <input type="number" id="lot" placeholder="Lot Size (e.g. 50)">
+    <button id="exportBtn">Export</button>
+    <input type="file" id="importBtn" accept="application/json">
 
-  <input type="text" id="notes" placeholder="Notes">
+    <script>
+        const tradeForm = document.getElementById('tradeForm');
+        const tradeTable = document.getElementById('tradeTable').getElementsByTagName('tbody')[0];
+        const clearFormButton = document.getElementById('clearForm');
+        const exportButton = document.getElementById('exportBtn');
+        const importButton = document.getElementById('importBtn');
+        let trades = [];
 
-  <button onclick="saveTrade()">Save Trade</button>
-</div>
+        tradeForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const tradeType = document.getElementById('tradeType').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const date = document.getElementById('date').value;
 
-<div class="card">
-  <h3>📈 Performance</h3>
-  <p>Total Trades: <span id="total">0</span></p>
-  <p>Win Rate: <span id="winrate">0%</span></p>
-  <p>Total P&L: ₹<span id="pnl">0</span></p>
-</div>
+            if (amount > 0) {
+                trades.push({ tradeType, amount, date });
+                updateTable();
+                tradeForm.reset();
+            } else {
+                alert('Please enter a valid amount greater than 0.');
+            }
+        });
 
-<div class="card">
-  <h3>📋 Trades</h3>
-  <ul id="list"></ul>
-</div>
+        clearFormButton.addEventListener('click', () => tradeForm.reset());
 
-<script>
-function saveTrade() {
-  let date = document.getElementById("date").value;
-  let strike = document.getElementById("strike").value;
-  let type = document.getElementById("type").value;
-  let entry = parseFloat(document.getElementById("entry").value);
-  let exit = parseFloat(document.getElementById("exit").value);
-  let lot = parseFloat(document.getElementById("lot").value);
-  let notes = document.getElementById("notes").value;
+        function updateTable() {
+            tradeTable.innerHTML = '';
+            trades.forEach((trade, index) => {
+                const row = tradeTable.insertRow();
+                row.insertCell(0).innerText = trade.tradeType;
+                row.insertCell(1).innerText = `\$${trade.amount.toFixed(2)}`;
+                row.insertCell(2).innerText = trade.date;
+                const deleteCell = row.insertCell(3);
+                const deleteButton = document.createElement('button');
+                deleteButton.innerText = 'Delete';
+                deleteButton.onclick = () => {
+                    trades.splice(index, 1);
+                    updateTable();
+                };
+                deleteCell.appendChild(deleteButton);
+            });
+        }
 
-  let pnl = (exit - entry) * lot;
+        exportButton.addEventListener('click', () => {
+            const blob = new Blob([JSON.stringify(trades)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'trades.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
 
-  let trade = { date, strike, type, entry, exit, lot, pnl, notes };
-
-  let trades = JSON.parse(localStorage.getItem("trades")) || [];
-  trades.push(trade);
-
-  localStorage.setItem("trades", JSON.stringify(trades));
-
-  displayTrades();
-}
-
-function displayTrades() {
-  let list = document.getElementById("list");
-  list.innerHTML = "";
-
-  let trades = JSON.parse(localStorage.getItem("trades")) || [];
-
-  let total = trades.length;
-  let wins = 0;
-  let totalPnl = 0;
-
-  trades.forEach(t => {
-    let li = document.createElement("li");
-
-    let resultClass = t.pnl >= 0 ? "profit" : "loss";
-    if (t.pnl > 0) wins++;
-
-    totalPnl += t.pnl;
-
-    li.innerHTML = `
-      ${t.date} | ${t.strike} ${t.type}  
-      | Entry: ${t.entry} → Exit: ${t.exit}  
-      | Lot: ${t.lot}  
-      | <span class="${resultClass}">₹${t.pnl}</span>  
-      | ${t.notes}
-    `;
-
-    list.appendChild(li);
-  });
-
-  let winrate = total ? ((wins / total) * 100).toFixed(1) : 0;
-
-  document.getElementById("total").innerText = total;
-  document.getElementById("winrate").innerText = winrate + "%";
-  document.getElementById("pnl").innerText = totalPnl;
-}
-
-displayTrades();
-</script>
-
+        importButton.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        trades = JSON.parse(reader.result);
+                        updateTable();
+                    } catch (err) {
+                        alert('Failed to import trades. Please ensure the file is valid JSON.');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+    </script>
 </body>
 </html>
