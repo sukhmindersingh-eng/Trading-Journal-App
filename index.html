@@ -1,54 +1,54 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Journal App</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-    }
-    
-    .container {
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-      width: 100%;
-      max-width: 800px;
-      padding: 40px;
-    }
-    
-    h1 {
-      color: #333;
-      margin-bottom: 10px;
-      text-align: center;
-    }
-    
-    .subtitle {
-      color: #666;
-      text-align: center;
-      margin-bottom: 30px;
-      font-size: 14px;
-    }
-  </style>
+  <title>Trading Journal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
 <body>
-  <div class="container">
-    <h1>📈 Trading Journal App</h1>
-    <p class="subtitle">Track and analyze your trades</p>
-    <div id="root"></div>
-  </div>
+
+<h2>Trading Journal</h2>
+
+<input type="date" id="date"><br><br>
+<input type="number" id="entry" placeholder="Entry Price"><br><br>
+<input type="number" id="exit" placeholder="Exit Price"><br><br>
+<input type="text" id="notes" placeholder="Notes"><br><br>
+
+<button onclick="saveTrade()">Save Trade</button>
+
+<h3>Trades</h3>
+<ul id="list"></ul>
+
+<script>
+function saveTrade() {
+  let date = document.getElementById("date").value;
+  let entry = document.getElementById("entry").value;
+  let exit = document.getElementById("exit").value;
+  let notes = document.getElementById("notes").value;
+
+  let trade = { date, entry, exit, notes };
+
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+  trades.push(trade);
+
+  localStorage.setItem("trades", JSON.stringify(trades));
+  displayTrades();
+}
+
+function displayTrades() {
+  let list = document.getElementById("list");
+  list.innerHTML = "";
+
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+
+  trades.forEach(t => {
+    let li = document.createElement("li");
+    li.innerText = `${t.date} | Entry: ${t.entry} | Exit: ${t.exit} | ${t.notes}`;
+    list.appendChild(li);
+  });
+}
+
+displayTrades();
+</script>
+
 </body>
 </html>
