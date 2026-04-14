@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pro Trading Journal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial;
+  background:#0f172a;
+  color:white;
+  padding:15px;
+}
+
+h1 { text-align:center; color:#38bdf8; }
+
+.container { max-width:1000px; margin:auto; }
+
+.card {
+  background:#1e293b;
+  padding:15px;
+  border-radius:10px;
+  margin-bottom:15px;
+}
+
+input, select, button, textarea {
+  width:100%;
+  padding:8px;
+  margin-top:6px;
+  border-radius:6px;
+  border:none;
+}
+
+button {
+  background:#38bdf8;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+}
+
+.stats {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+
+.stat {
+  background:#020617;
+  padding:10px;
+  text-align:center;
+  border-radius:8px;
+}
+
+table {
+  width:100%;
+  margin-top:10px;
+  border-collapse:collapse;
+}
+
+th,td {
+  padding:8px;
+  border-bottom:1px solid #334155;
+  text-align:center;
+}
+
+.profit { color:#22c55e; }
+.loss { color:#ef4444; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h1>📊 Pro Trading Journal</h1>
+
+<div class="card grid">
+<input type="date" id="date">
+<select id="type">
+  <option>CE</option>
+  <option>PE</option>
+</select>
+
+<input type="number" id="strike" placeholder="Strike Price">
+<input type="number" id="lot" placeholder="Lot Size">
+
+<input type="time" id="buyTime">
+<input type="time" id="sellTime">
+
+<input type="number" id="buy" placeholder="Buy Premium">
+<input type="number" id="sell" placeholder="Sell Premium">
+
+<select id="strategy">
+  <option>Breakout</option>
+  <option>Reversal</option>
+  <option>VWAP</option>
+  <option>Support/Resistance</option>
+</select>
+
+<textarea id="notes" placeholder="Notes / Emotion / Mistake"></textarea>
+
+<button onclick="addTrade()">Add Trade</button>
+<button onclick="exportCSV()">Export CSV</button>
+</div>
+
+<div class="stats">
+<div class="stat"><h3>Total P&L</h3><p id="totalPL">0</p></div>
+<div class="stat"><h3>Win Rate</h3><p id="winRate">0%</p></div>
+<div class="stat"><h3>Trades</h3><p id="trades">0</p></div>
+<div class="stat"><h3>Avg Win</h3><p id="avgWin">0</p></div>
+<div class="stat"><h3>Avg Loss</h3><p id="avgLoss">0</p></div>
+<div class="stat"><h3>RR</h3><p id="rr">0</p></div>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>Date</th><th>Type</th><th>Strike</th><th>Lot</th>
+<th>Buy</th><th>Sell</th><th>P&L</th><th>Action</th>
+</tr>
+</thead>
+<tbody id="body"></tbody>
+</table>
+
+</div>
+
+<script>
+let trades = JSON.parse(localStorage.getItem("trades")) || [];
+
+function calcBrokerage(buy, sell, lot){
+  return (buy + sell) * lot * 0.002; // approx
+}
+
+function addTrade(){
+  let t = {
+    date:date.value,
+    type:type.value,
+    strike:+strike.value,
+    lot:+lot.value,
+    buy:+buy.value,
+    sell:+sell.value,
+    buyTime:buyTime.value,
+    sellTime:sellTime.value,
+    strategy:strategy.value,
+    notes:notes.value
+  };
+
+  if(!t.date || !t.buy || !t.sell || !t.lot) return alert("Fill all");
+
+  let gross = (t.sell - t.buy)*t.lot;
+  let charges = calcBrokerage(t.buy, t.sell, t.lot);
+  t.pl = gross - charges;
+
+  trades.push(t);
+  localStorage.setItem("trades", JSON.stringify(trades));
+  render();
+}
+
+function del(i){
+  trades.splice(i,1);
+  localStorage.setItem("trades", JSON.stringify(trades));
+  render();
+}
+
+function render(){
+  let html="";
+  let total=0, win=0, winSum=0, lossSum=0, winCount=0, lossCount=0;
+
+  trades.forEach((t,i)=>{
+    total+=t.pl;
+    if(t.pl>0){ win++; winSum+=t.pl; winCount++; }
+    else { lossSum+=t.pl; lossCount++; }
+
+    html+=`
+    <tr>
+      <td>${t.date}</td>
+      <td>${t.type}</td>
+      <td>${t.strike}</td>
+      <td>${t.lot}</td>
+      <td>${t.buy}</td>
+      <td>${t.sell}</td>
+      <td class="${t.pl>=0?'profit':'loss'}">${t.pl.toFixed(2)}</td>
+      <td><button onclick="del(${i})">X</button></td>
+    </tr>`;
+  });
+
+  body.innerHTML=html;
+
+  totalPL.innerText=total.toFixed(2);
+  tradesCount = trades.length;
+  tradesEl = document.getElementById("trades");
+  tradesEl.innerText = tradesCount;
+
+  winRate.innerText = tradesCount ? ((win/tradesCount)*100).toFixed(1)+"%" : "0%";
+
+  avgWin.innerText = winCount ? (winSum/winCount).toFixed(2) : 0;
+  avgLoss.innerText = lossCount ? (lossSum/lossCount).toFixed(2) : 0;
+
+  rr.innerText = (winCount && lossCount) ? Math.abs((winSum/winCount)/(lossSum/lossCount)).toFixed(2) : 0;
+}
+
+function exportCSV(){
+  let csv="Date,Type,Strike,Lot,Buy,Sell,PnL\n";
+  trades.forEach(t=>{
+    csv+=`${t.date},${t.type},${t.strike},${t.lot},${t.buy},${t.sell},${t.pl}\n`;
+  });
+
+  let blob = new Blob([csv], {type:'text/csv'});
+  let a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download="trades.csv";
+  a.click();
+}
+
+render();
+</script>
+
+</body>
+</html>
