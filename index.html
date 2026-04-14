@@ -1,10 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Trading App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trading Journal App</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 800px;
+      padding: 40px;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    
+    .subtitle {
+      color: #666;
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+  </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div class="container">
+    <h1>📈 Trading Journal App</h1>
+    <p class="subtitle">Track and analyze your trades</p>
+    <div id="root"></div>
+  </div>
 </body>
 </html>
