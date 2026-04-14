@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trading Journal Pro</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#4f46e5">
+
+<!-- ✅ ICON FIX -->
+<link rel="apple-touch-icon" href="icon.PNG">
+<link rel="apple-touch-icon" sizes="180x180" href="icon.PNG">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body { margin:0; font-family:-apple-system; background:#f8fafc; }
+
+.header { text-align:center; padding:12px; font-weight:bold; color:#4f46e5; }
+
+.screen { display:none; padding:12px; }
+.active { display:block; }
+
+.card {
+ background:white;
+ padding:12px;
+ border-radius:14px;
+ margin-bottom:12px;
+}
+
+.grid {
+ display:grid;
+ grid-template-columns:1fr 1fr;
+ gap:10px;
+}
+
+input, textarea {
+ padding:10px;
+ border-radius:10px;
+ border:none;
+ background:#f1f5f9;
+}
+
+button {
+ width:100%;
+ padding:12px;
+ border:none;
+ border-radius:14px;
+ margin-top:8px;
+}
+
+.add { background:#bbf7d0; }
+.export { background:#bfdbfe; }
+.clear { background:#fecaca; }
+
+.nav {
+ position:fixed;
+ bottom:0;
+ width:100%;
+ display:flex;
+ background:white;
+}
+
+.nav button { flex:1; }
+
+.stat { text-align:center; margin:5px; }
+</style>
+</head>
+
+<body>
+
+<div class="header">📊 Trading Journal Pro</div>
+
+<!-- DASHBOARD -->
+<div id="dash" class="screen active">
+
+<div class="card">
+<div class="stat">P&L: <b id="pl">0</b></div>
+<div class="stat">Win%: <b id="win">0</b></div>
+<div class="stat">Trades: <b id="count">0</b></div>
+</div>
+
+<div class="card">
+<h3>🧠 AI Coach</h3>
+<p id="coach">No data</p>
+<p>Score: <span id="score">0</span></p>
+</div>
+
+</div>
+
+<!-- ADD TRADE -->
+<div id="add" class="screen">
+<div class="card">
+
+<div class="grid">
+<input type="date" id="date">
+<input type="number" id="strike" placeholder="Strike">
+
+<input type="number" id="lot" placeholder="Lot (50)">
+<input type="time" id="buyTime">
+
+<input type="time" id="sellTime">
+<input type="number" id="buy" placeholder="Buy">
+
+<input type="number" id="sell" placeholder="Sell">
+<textarea id="notes" placeholder="Notes"></textarea>
+</div>
+
+<button class="add" onclick="addTrade()">Add Trade</button>
+<button class="export" onclick="exportData()">Export</button>
+<button class="clear" onclick="clearAll()">Clear</button>
+
+</div>
+</div>
+
+<!-- JOURNAL -->
+<div id="journal" class="screen">
+<div class="card">
+<div id="list"></div>
+</div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+<button onclick="show('dash')">🏠</button>
+<button onclick="show('add')">➕</button>
+<button onclick="show('journal')">📒</button>
+</div>
+
+<script>
+let trades = JSON.parse(localStorage.getItem("t"))||[];
+
+function show(id){
+ document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+}
+
+function addTrade(){
+ let t={
+  date:date.value,
+  strike:+strike.value,
+  lot:+lot.value||50,
+  buy:+buy.value,
+  sell:+sell.value,
+  notes:notes.value
+ };
+
+ t.pl=(t.sell-t.buy)*t.lot;
+
+ trades.push(t);
+ localStorage.setItem("t",JSON.stringify(trades));
+
+ render();
+ show('dash');
+}
+
+function render(){
+ let total=0, win=0, html="";
+
+ trades.forEach(t=>{
+  total+=t.pl;
+  if(t.pl>0) win++;
+
+  html+=`${t.date} | ${t.strike} | ${t.pl}<br>`;
+ });
+
+ pl.innerText=total;
+ count.innerText=trades.length;
+ win.innerText=((win/trades.length)*100||0).toFixed(0);
+
+ list.innerHTML=html;
+
+ ai();
+}
+
+function ai(){
+ if(!trades.length) return;
+
+ let last=trades[trades.length-1];
+ let score=100, msg=[];
+
+ if(last.pl<0){ msg.push("Loss trade — review"); score-=10; }
+ if(!last.notes){ msg.push("Add notes"); score-=10; }
+
+ let loss3=trades.slice(-3).every(t=>t.pl<0);
+ if(loss3){ msg.push("Stop trading — 3 losses"); score-=30; }
+
+ coach.innerHTML=msg.join("<br>");
+ document.getElementById("score").innerText=score;
+}
+
+function clearAll(){
+ trades=[];
+ localStorage.clear();
+ render();
+}
+
+function exportData(){
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob([JSON.stringify(trades)]));
+ a.download="trades.json";
+ a.click();
+}
+
+render();
+
+/* PWA */
+if ('serviceWorker' in navigator) {
+ navigator.serviceWorker.register('sw.js');
+}
+</script>
+
+</body>
+</html>
