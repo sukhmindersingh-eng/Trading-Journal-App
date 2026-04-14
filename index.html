@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hedge Fund Trading Journal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: Arial;
+  background: linear-gradient(135deg,#020617,#0f172a);
+  color:white;
+  padding:15px;
+}
+h1 { text-align:center; color:#22c55e; }
+
+.container { max-width:1300px; margin:auto; }
+
+.card {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(12px);
+  padding:15px;
+  border-radius:12px;
+  margin-bottom:15px;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:10px;
+}
+
+.row { display:flex; gap:10px; margin-top:10px; }
+
+button {
+  flex:1;
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.add { background:#22c55e; }
+.export { background:#38bdf8; }
+.import { background:#a78bfa; }
+.clear { background:#ef4444; }
+
+input, select, textarea {
+  width:100%;
+  padding:8px;
+  border-radius:6px;
+  border:none;
+}
+
+.stats {
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:10px;
+}
+
+.stat {
+  background:#020617;
+  padding:10px;
+  text-align:center;
+  border-radius:8px;
+}
+
+canvas {
+  width:100%;
+  height:150px;
+  background:#020617;
+  border-radius:10px;
+  margin-top:10px;
+}
+
+table {
+  width:100%;
+  border-collapse:collapse;
+}
+
+th,td {
+  padding:8px;
+  border-bottom:1px solid #334155;
+  text-align:center;
+}
+
+.profit { color:#22c55e; }
+.loss { color:#ef4444; }
+
+img { width:60px; border-radius:6px; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h1>💼 Hedge Fund Trading Journal</h1>
+
+<div class="card grid">
+<input type="date" id="date">
+<select id="type"><option>CE</option><option>PE</option></select>
+
+<input type="number" id="strike" placeholder="Strike Price">
+<input type="number" id="lot" placeholder="Lot (Auto 50)">
+
+<input type="time" id="buyTime">
+<input type="time" id="sellTime">
+
+<input type="number" id="buy" placeholder="Buy Premium">
+<input type="number" id="sell" placeholder="Sell Premium">
+
+<select id="strategy">
+<option>Breakout</option>
+<option>Reversal</option>
+<option>VWAP</option>
+<option>Support/Resistance</option>
+</select>
+
+<input type="file" id="img">
+
+<textarea id="notes" placeholder="Notes"></textarea>
+</div>
+
+<div class="row"><button class="add" onclick="addTrade()">Add Trade</button></div>
+<div class="row">
+<button class="export" onclick="exportData()">Export</button>
+<button class="import" onclick="importData()">Import</button>
+</div>
+<div class="row"><button class="clear" onclick="clearAll()">Clear</button></div>
+
+<div class="card">
+<select id="filterStrategy" onchange="render()">
+<option value="">All Strategies</option>
+<option>Breakout</option>
+<option>Reversal</option>
+<option>VWAP</option>
+<option>Support/Resistance</option>
+</select>
+</div>
+
+<div class="stats">
+<div class="stat"><h3>P&L</h3><p id="pl">0</p></div>
+<div class="stat"><h3>Win%</h3><p id="win">0</p></div>
+<div class="stat"><h3>Trades</h3><p id="count">0</p></div>
+<div class="stat"><h3>RR</h3><p id="rr">0</p></div>
+<div class="stat"><h3>Max DD</h3><p id="dd">0</p></div>
+</div>
+
+<div class="card">
+<h2>🧠 AI Coach</h2>
+<p id="coach"></p>
+<p><b>Score:</b> <span id="score"></span></p>
+</div>
+
+<canvas id="chart"></canvas>
+
+<table>
+<thead>
+<tr>
+<th>Date</th><th>Strike</th><th>P&L</th><th>Img</th><th>X</th>
+</tr>
+</thead>
+<tbody id="body"></tbody>
+</table>
+
+</div>
+
+<script>
+let trades = JSON.parse(localStorage.getItem("t")) || [];
+
+function addTrade(){
+ let file = img.files[0];
+ let reader = new FileReader();
+
+ reader.onload = function(){
+  let t = {
+   date:date.value,
+   strike:+strike.value,
+   lot:+lot.value||50,
+   buy:+buy.value,
+   sell:+sell.value,
+   strategy:strategy.value,
+   notes:notes.value,
+   img:reader.result
+  };
+
+  t.pl=(t.sell-t.buy)*t.lot-(t.buy+t.sell)*t.lot*0.002;
+
+  trades.push(t);
+  localStorage.setItem("t",JSON.stringify(trades));
+  render();
+ };
+
+ if(file) reader.readAsDataURL(file);
+ else reader.onload();
+}
+
+function render(){
+ let html="", total=0, win=0, eq=[], max=0, dd=0;
+
+ trades.forEach((t,i)=>{
+  total+=t.pl;
+  eq.push(total);
+  max=Math.max(max,total);
+  dd=Math.min(dd,total-max);
+
+  if(t.pl>0) win++;
+
+  html+=`<tr>
+  <td>${t.date}</td>
+  <td>${t.strike}</td>
+  <td class="${t.pl>0?'profit':'loss'}">${t.pl.toFixed(0)}</td>
+  <td>${t.img?'<img src="'+t.img+'">':''}</td>
+  <td><button onclick="del(${i})">X</button></td>
+  </tr>`;
+ });
+
+ body.innerHTML=html;
+ pl.innerText=total.toFixed(0);
+ count.innerText=trades.length;
+ win.innerText=((win/trades.length)*100||0).toFixed(0);
+ dd.innerText=dd.toFixed(0);
+
+ draw(eq);
+ ai();
+}
+
+function draw(d){
+ let c=chart.getContext("2d");
+ chart.width=chart.offsetWidth;
+ chart.height=150;
+ c.clearRect(0,0,chart.width,150);
+ c.beginPath();
+
+ d.forEach((v,i)=>{
+  let x=i*(chart.width/d.length);
+  let y=150-(v/Math.max(...d))*150;
+  i?c.lineTo(x,y):c.moveTo(x,y);
+ });
+
+ c.strokeStyle="#22c55e";
+ c.stroke();
+}
+
+function ai(){
+ let score=100, msg=[];
+ let last=trades[trades.length-1];
+ if(!last) return;
+
+ if(last.pl<0) {msg.push("Loss trade — check setup"); score-=10;}
+ if(last.notes.length<5){msg.push("Add notes"); score-=10;}
+
+ let lossStreak=trades.slice(-3).every(t=>t.pl<0);
+ if(lossStreak){msg.push("STOP trading — 3 losses"); score-=30;}
+
+ msg.push(score>80?"Good discipline":"Improve discipline");
+
+ coach.innerHTML=msg.join("<br>");
+ scoreEl=score;
+ document.getElementById("score").innerText=score;
+}
+
+function del(i){
+ trades.splice(i,1);
+ localStorage.setItem("t",JSON.stringify(trades));
+ render();
+}
+
+function clearAll(){
+ if(confirm("Clear?")){
+  trades=[];
+  localStorage.clear();
+  render();
+ }
+}
+
+function exportData(){
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob([JSON.stringify(trades)]));
+ a.download="backup.json";
+ a.click();
+}
+
+function importData(){
+ let inp=document.createElement("input");
+ inp.type="file";
+ inp.onchange=e=>{
+  let r=new FileReader();
+  r.onload=()=>{
+   trades=JSON.parse(r.result);
+   localStorage.setItem("t",JSON.stringify(trades));
+   render();
+  };
+  r.readAsText(e.target.files[0]);
+ };
+ inp.click();
+}
+
+render();
+</script>
+
+</body>
+</html>
