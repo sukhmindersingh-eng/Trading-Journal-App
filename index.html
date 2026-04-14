@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Premium Trading Journal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(135deg,#e0e7ff,#f8fafc);
+  padding:15px;
+  color:#0f172a;
+}
+
+h1 {
+  text-align:center;
+  color:#4f46e5;
+  margin-bottom:20px;
+}
+
+.container {
+  max-width:1100px;
+  margin:auto;
+}
+
+/* GLASS CARD */
+.card {
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(20px);
+  border-radius:20px;
+  padding:15px;
+  margin-bottom:20px;
+  box-shadow:0 8px 30px rgba(0,0,0,0.08);
+}
+
+/* GRID */
+.grid {
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:14px;
+}
+
+/* INPUTS */
+input, select, textarea {
+  padding:12px;
+  border-radius:14px;
+  border:none;
+  background:#f1f5f9;
+  box-shadow: inset 2px 2px 5px rgba(0,0,0,0.05),
+              inset -2px -2px 5px rgba(255,255,255,0.7);
+}
+
+/* BUTTON ROW */
+.row {
+  display:flex;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+/* iOS BUTTON */
+button {
+  flex:1;
+  padding:12px;
+  border:none;
+  border-radius:20px;
+  font-weight:600;
+  cursor:pointer;
+  transition:0.2s;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+}
+
+/* PRESS */
+button:active {
+  transform: scale(0.96);
+}
+
+/* PASTEL COLORS */
+.add { background:#bbf7d0; }
+.export { background:#bfdbfe; }
+.import { background:#e9d5ff; }
+.clear { background:#fecaca; }
+
+/* STATS */
+.stats {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+
+.stat {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(10px);
+  border-radius:16px;
+  padding:12px;
+  text-align:center;
+  box-shadow:0 6px 20px rgba(0,0,0,0.08);
+}
+
+/* TABLE */
+table {
+  width:100%;
+  border-collapse:collapse;
+  margin-top:10px;
+}
+
+th, td {
+  padding:10px;
+  border-bottom:1px solid #e2e8f0;
+  text-align:center;
+}
+
+.profit { color:#16a34a; }
+.loss { color:#dc2626; }
+
+/* CHART */
+canvas {
+  background:white;
+  border-radius:16px;
+  margin-top:15px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<h1>📊 Premium Trading Journal</h1>
+
+<!-- INPUT -->
+<div class="card">
+<div class="grid">
+<input type="date" id="date">
+<select id="type"><option>CE</option><option>PE</option></select>
+
+<input type="number" id="strike" placeholder="Strike Price">
+<input type="number" id="lot" placeholder="Lot (Auto 50)">
+
+<input type="time" id="buyTime">
+<input type="time" id="sellTime">
+
+<input type="number" id="buy" placeholder="Buy Premium">
+<input type="number" id="sell" placeholder="Sell Premium">
+
+<select id="strategy">
+<option>Breakout</option>
+<option>Reversal</option>
+<option>VWAP</option>
+<option>Support/Resistance</option>
+</select>
+
+<textarea id="notes" placeholder="Notes"></textarea>
+</div>
+</div>
+
+<!-- BUTTONS -->
+<div class="row"><button class="add" onclick="addTrade()">Add Trade</button></div>
+<div class="row">
+<button class="export" onclick="exportData()">Export</button>
+<button class="import" onclick="importData()">Import</button>
+</div>
+<div class="row"><button class="clear" onclick="clearAll()">Clear</button></div>
+
+<!-- STATS -->
+<div class="stats">
+<div class="stat"><h3>P&L</h3><p id="pl">0</p></div>
+<div class="stat"><h3>Win%</h3><p id="win">0</p></div>
+<div class="stat"><h3>Trades</h3><p id="count">0</p></div>
+<div class="stat"><h3>DD</h3><p id="dd">0</p></div>
+</div>
+
+<!-- AI -->
+<div class="card">
+<h2>🧠 AI Coach</h2>
+<p id="coach">No data</p>
+<p><b>Score:</b> <span id="score">0</span>/100</p>
+</div>
+
+<canvas id="chart"></canvas>
+
+<!-- TABLE -->
+<table>
+<thead>
+<tr>
+<th>Date</th><th>Strike</th><th>P&L</th><th>X</th>
+</tr>
+</thead>
+<tbody id="body"></tbody>
+</table>
+
+</div>
+
+<script>
+let trades = JSON.parse(localStorage.getItem("t")) || [];
+
+function addTrade(){
+ let t = {
+   date:date.value,
+   strike:+strike.value,
+   lot:+lot.value||50,
+   buy:+buy.value,
+   sell:+sell.value,
+   notes:notes.value
+ };
+
+ t.pl=(t.sell-t.buy)*t.lot-(t.buy+t.sell)*t.lot*0.002;
+
+ trades.push(t);
+ localStorage.setItem("t",JSON.stringify(trades));
+ render();
+}
+
+function render(){
+ let html="", total=0, win=0, eq=[], max=0, dd=0;
+
+ trades.forEach((t,i)=>{
+  total+=t.pl;
+  eq.push(total);
+  max=Math.max(max,total);
+  dd=Math.min(dd,total-max);
+
+  if(t.pl>0) win++;
+
+  html+=`<tr>
+  <td>${t.date}</td>
+  <td>${t.strike}</td>
+  <td class="${t.pl>0?'profit':'loss'}">${t.pl.toFixed(0)}</td>
+  <td><button onclick="del(${i})">X</button></td>
+  </tr>`;
+ });
+
+ body.innerHTML=html;
+ pl.innerText=total.toFixed(0);
+ count.innerText=trades.length;
+ win.innerText=((win/trades.length)*100||0).toFixed(0);
+ dd.innerText=dd.toFixed(0);
+
+ draw(eq);
+ ai();
+}
+
+function draw(d){
+ let c=chart.getContext("2d");
+ chart.width=chart.offsetWidth;
+ chart.height=150;
+ c.clearRect(0,0,chart.width,150);
+ c.beginPath();
+
+ d.forEach((v,i)=>{
+  let x=i*(chart.width/d.length);
+  let y=150-(v/Math.max(...d))*150;
+  i?c.lineTo(x,y):c.moveTo(x,y);
+ });
+
+ c.strokeStyle="#4f46e5";
+ c.stroke();
+}
+
+function ai(){
+ if(!trades.length) return;
+
+ let last=trades[trades.length-1];
+ let score=100, msg=[];
+
+ if(last.pl<0){ msg.push("Loss trade — review setup"); score-=10; }
+ if(!last.notes){ msg.push("Add notes"); score-=10; }
+
+ let loss3=trades.slice(-3).every(t=>t.pl<0);
+ if(loss3){ msg.push("STOP after 3 losses"); score-=30; }
+
+ msg.push(score>80?"Good discipline":"Improve discipline");
+
+ coach.innerHTML=msg.join("<br>");
+ document.getElementById("score").innerText=score;
+}
+
+function del(i){
+ trades.splice(i,1);
+ localStorage.setItem("t",JSON.stringify(trades));
+ render();
+}
+
+function clearAll(){
+ if(confirm("Clear all?")){
+  trades=[];
+  localStorage.clear();
+  render();
+ }
+}
+
+function exportData(){
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob([JSON.stringify(trades)]));
+ a.download="backup.json";
+ a.click();
+}
+
+function importData(){
+ let inp=document.createElement("input");
+ inp.type="file";
+ inp.onchange=e=>{
+  let r=new FileReader();
+  r.onload=()=>{
+   trades=JSON.parse(r.result);
+   localStorage.setItem("t",JSON.stringify(trades));
+   render();
+  };
+  r.readAsText(e.target.files[0]);
+ };
+ inp.click();
+}
+
+render();
+</script>
+
+</body>
+</html>
