@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Journal PRO v2</title>
+
+<style>
+:root {
+  --bg-dark: #0f2f2f;
+  --card: #1f3f3f;
+  --field: #F2CDC5;
+  --header: #B97A71;
+  --text: #cbd5d5;
+}
+
+body {
+  font-family: Arial;
+  background: var(--bg-dark);
+  color: var(--text);
+  padding: 20px;
+}
+
+h1 { text-align: center; }
+
+/* FORM */
+.form {
+  background: var(--card);
+  padding: 20px;
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+input, select {
+  height: 40px;
+  background: var(--field);
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+}
+
+textarea {
+  height: 80px;
+  background: var(--field);
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+}
+
+.full-width {
+  grid-column: span 2;
+}
+
+button {
+  height: 42px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.save-btn { background: #c16a63; color: white; }
+.download-btn { background: #6b8e8e; color: white; }
+
+/* TABLE */
+.table {
+  margin-top: 20px;
+  background: var(--card);
+  padding: 15px;
+  border-radius: 10px;
+}
+
+table {
+  width: 100%;
+  border-spacing: 6px;
+}
+
+th {
+  background: var(--header);
+  color: white;
+  padding: 10px;
+}
+
+td {
+  background: var(--field);
+  color: black;
+  padding: 10px;
+  text-align: center;
+}
+
+.profit { color: green; font-weight: bold; }
+.loss { color: red; font-weight: bold; }
+
+/* ACTION BUTTONS */
+.action-btn {
+  padding: 5px 8px;
+  margin: 2px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+}
+
+.edit-btn { background: green; color: white; }
+.delete-btn { background: red; color: white; }
+
+</style>
+</head>
+
+<body>
+
+<h1>📊 Trading Journal PRO</h1>
+
+<input type="hidden" id="editIndex">
+
+<div class="form">
+
+<div class="form-group">
+<label>Date</label>
+<input type="date" id="date">
+</div>
+
+<div class="form-group">
+<label>Day</label>
+<input type="text" id="day" readonly>
+</div>
+
+<div class="form-group">
+<label>Underlying</label>
+<select id="underlying">
+<option>NIFTY</option>
+<option>SENSEX</option>
+</select>
+</div>
+
+<div class="form-group">
+<label>Strike</label>
+<input type="number" id="strike">
+</div>
+
+<div class="form-group">
+<label>Qty</label>
+<input type="number" id="qty">
+</div>
+
+<div class="form-group">
+<label>Buy Price</label>
+<input type="number" id="buyPrice">
+</div>
+
+<div class="form-group">
+<label>Buy Time</label>
+<input type="time" id="buyTime">
+</div>
+
+<div class="form-group">
+<label>Sell Price</label>
+<input type="number" id="sellPrice">
+</div>
+
+<div class="form-group">
+<label>Sell Time</label>
+<input type="time" id="sellTime">
+</div>
+
+<div class="form-group">
+<label>Strategy</label>
+<input type="text" id="strategy">
+</div>
+
+<div class="form-group full-width">
+<label>Remarks</label>
+<textarea id="remarks"></textarea>
+</div>
+
+<button class="save-btn" id="saveBtn">Save Trade</button>
+<button class="download-btn" id="downloadBtn">Download Excel</button>
+
+</div>
+
+<div class="table">
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Day</th>
+<th>Underlying</th>
+<th>Strike</th>
+<th>Qty</th>
+<th>Buy</th>
+<th>Sell</th>
+<th>P/L</th>
+<th>%</th>
+<th>Strategy</th>
+<th>Remarks</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="tradeTable"></tbody>
+</table>
+</div>
+
+<script>
+const saveBtn = document.getElementById("saveBtn");
+const downloadBtn = document.getElementById("downloadBtn");
+const table = document.getElementById("tradeTable");
+
+saveBtn.addEventListener("click", saveTrade);
+downloadBtn.addEventListener("click", downloadCSV);
+
+function formatDate(d) {
+  let dt = new Date(d);
+  return dt.toLocaleDateString('en-GB');
+}
+
+date.addEventListener("change", () => {
+  let d = new Date(date.value);
+  day.value = d.toLocaleDateString('en-US',{weekday:'long'});
+});
+
+function resetForm() {
+  document.querySelectorAll("input, textarea").forEach(el => el.value = "");
+  underlying.value = "NIFTY";
+  editIndex.value = "";
+}
+
+function saveTrade() {
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+
+  let trade = {
+    date: formatDate(date.value),
+    day: day.value,
+    underlying: underlying.value,
+    strike: strike.value,
+    qty: Number(qty.value),
+    buy: Number(buyPrice.value),
+    sell: Number(sellPrice.value),
+    strategy: strategy.value,
+    remarks: remarks.value
+  };
+
+  trade.pl = (trade.sell - trade.buy) * trade.qty;
+  trade.percent = ((trade.pl/(trade.buy*trade.qty))*100 || 0).toFixed(2);
+
+  if (editIndex.value !== "") {
+    trades[editIndex.value] = trade;
+  } else {
+    trades.push(trade);
+  }
+
+  localStorage.setItem("trades", JSON.stringify(trades));
+  displayTrades();
+  resetForm();
+}
+
+function displayTrades() {
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+  table.innerHTML = "";
+
+  trades.forEach((t,i)=>{
+    let row = document.createElement("tr");
+
+    row.innerHTML = `
+<td>${t.date}</td>
+<td>${t.day}</td>
+<td>${t.underlying}</td>
+<td>${t.strike}</td>
+<td>${t.qty}</td>
+<td>${t.buy}</td>
+<td>${t.sell}</td>
+<td class="${t.pl>=0?'profit':'loss'}">${t.pl}</td>
+<td>${t.percent}%</td>
+<td>${t.strategy}</td>
+<td>${t.remarks}</td>
+<td>
+<button class="action-btn edit-btn" data-index="${i}">Edit</button>
+<button class="action-btn delete-btn" data-index="${i}">Delete</button>
+</td>
+`;
+
+    table.appendChild(row);
+  });
+}
+
+/* ✅ FIXED EVENT HANDLING */
+table.addEventListener("click", function(e) {
+  let index = e.target.dataset.index;
+
+  if (e.target.classList.contains("edit-btn")) editTrade(index);
+  if (e.target.classList.contains("delete-btn")) deleteTrade(index);
+});
+
+function editTrade(i){
+  let t = JSON.parse(localStorage.getItem("trades"))[i];
+
+  day.value = t.day;
+  underlying.value = t.underlying;
+  strike.value = t.strike;
+  qty.value = t.qty;
+  buyPrice.value = t.buy;
+  sellPrice.value = t.sell;
+  strategy.value = t.strategy;
+  remarks.value = t.remarks;
+
+  editIndex.value = i;
+}
+
+function deleteTrade(i){
+  if (!confirm("Delete this trade?")) return;
+
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+  trades.splice(i,1);
+  localStorage.setItem("trades", JSON.stringify(trades));
+  displayTrades();
+}
+
+function downloadCSV(){
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+  let csv = "Date,Day,Underlying,Strike,Qty,Buy,Sell,P/L,%,Strategy,Remarks\n";
+
+  trades.forEach(t=>{
+    csv += `${t.date},${t.day},${t.underlying},${t.strike},${t.qty},${t.buy},${t.sell},${t.pl},${t.percent},${t.strategy},${t.remarks}\n`;
+  });
+
+  let blob = new Blob([csv], {type:"text/csv"});
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "trades.csv";
+  a.click();
+}
+
+displayTrades();
+</script>
+
+</body>
+</html>
