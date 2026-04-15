@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Journal PRO</title>
+
+<style>
+/* 🎨 COLOR THEME FROM YOUR IMAGE */
+:root {
+  --bg-dark: #0f2f2f;
+  --card: #1f3f3f;
+  --input: #2e5555;
+  --accent: #d6a5a0;
+  --accent-dark: #c16a63;
+  --text: #e6f0f0;
+  --muted: #aabcbc;
+  --profit: #7ed6a3;
+  --loss: #ff8a80;
+}
+
+body {
+  font-family: Arial;
+  background: var(--bg-dark);
+  color: var(--text);
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+}
+
+/* FORM GRID */
+.form {
+  background: var(--card);
+  padding: 20px;
+  border-radius: 12px;
+  margin-top: 20px;
+
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form label {
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+
+/* UNIFORM INPUTS */
+input, select {
+  width: 100%;
+  height: 40px;
+  padding: 0 10px;
+
+  border-radius: 6px;
+  border: none;
+  outline: none;
+
+  font-size: 14px;
+  box-sizing: border-box;
+
+  background: var(--input);
+  color: var(--text);
+
+  appearance: none;
+}
+
+/* TEXTAREA */
+textarea {
+  width: 100%;
+  height: 90px;
+  padding: 10px;
+
+  border-radius: 6px;
+  border: none;
+  outline: none;
+
+  font-size: 14px;
+  resize: none;
+  box-sizing: border-box;
+
+  background: var(--input);
+  color: var(--text);
+}
+
+.full-width {
+  grid-column: span 2;
+}
+
+/* BUTTON */
+button {
+  height: 42px;
+  background: var(--accent-dark);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  grid-column: span 2;
+}
+
+/* TABLE */
+.table {
+  background: var(--card);
+  padding: 15px;
+  border-radius: 10px;
+  margin-top: 20px;
+}
+
+table {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 8px;
+  text-align: center;
+  border-bottom: 1px solid #355c5c;
+  font-size: 13px;
+}
+
+/* PROFIT / LOSS */
+.profit {
+  color: var(--profit);
+  font-weight: bold;
+}
+
+.loss {
+  color: var(--loss);
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<h1>📊 Trading Journal PRO</h1>
+
+<div class="form">
+
+  <div class="form-group">
+    <label>Date</label>
+    <input type="date" id="date">
+  </div>
+
+  <div class="form-group">
+    <label>Day</label>
+    <input type="text" id="day" readonly>
+  </div>
+
+  <div class="form-group">
+    <label>Underlying</label>
+    <select id="underlying">
+      <option value="NIFTY">NIFTY</option>
+      <option value="SENSEX">SENSEX</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>Strike Price</label>
+    <input type="number" id="strike">
+  </div>
+
+  <div class="form-group">
+    <label>Option Type</label>
+    <select id="type">
+      <option value="CE">Call</option>
+      <option value="PE">Put</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>Quantity</label>
+    <input type="number" id="qty">
+  </div>
+
+  <div class="form-group">
+    <label>Buy Price</label>
+    <input type="number" id="buyPrice">
+  </div>
+
+  <div class="form-group">
+    <label>Buy Time</label>
+    <input type="time" id="buyTime">
+  </div>
+
+  <div class="form-group">
+    <label>Sell Price</label>
+    <input type="number" id="sellPrice">
+  </div>
+
+  <div class="form-group">
+    <label>Sell Time</label>
+    <input type="time" id="sellTime">
+  </div>
+
+  <div class="form-group">
+    <label>Stoploss</label>
+    <input type="number" id="sl">
+  </div>
+
+  <div class="form-group">
+    <label>Strategy</label>
+    <input type="text" id="strategy">
+  </div>
+
+  <div class="form-group full-width">
+    <label>Remarks</label>
+    <textarea id="remarks"></textarea>
+  </div>
+
+  <button onclick="saveTrade()">Save Trade</button>
+
+</div>
+
+<div class="table">
+  <h2>📈 Trade Analytics</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Day</th>
+        <th>Underlying</th>
+        <th>Strike</th>
+        <th>Qty</th>
+        <th>Buy</th>
+        <th>Buy Time</th>
+        <th>Cost</th>
+        <th>Sell</th>
+        <th>Sell Time</th>
+        <th>Hold</th>
+        <th>P/L</th>
+        <th>%</th>
+      </tr>
+    </thead>
+    <tbody id="tradeTable"></tbody>
+  </table>
+</div>
+
+<script>
+function setTodayDate() {
+  let today = new Date();
+  let yyyy = today.getFullYear();
+  let mm = String(today.getMonth() + 1).padStart(2, '0');
+  let dd = String(today.getDate()).padStart(2, '0');
+
+  document.getElementById("date").value = `${yyyy}-${mm}-${dd}`;
+  updateDay();
+}
+
+function updateDay() {
+  let dateVal = document.getElementById("date").value;
+  if (!dateVal) return;
+
+  let date = new Date(dateVal);
+  let day = date.toLocaleDateString('en-US', { weekday: 'long' });
+
+  document.getElementById("day").value = day;
+}
+
+document.getElementById("date").addEventListener("change", updateDay);
+setTodayDate();
+
+function calcHoldTime(buyTime, sellTime) {
+  if (!buyTime || !sellTime) return "-";
+  let start = new Date(`1970-01-01T${buyTime}:00`);
+  let end = new Date(`1970-01-01T${sellTime}:00`);
+  let diff = (end - start) / 60000;
+  return `${Math.floor(diff/60)}h ${diff%60}m`;
+}
+
+function saveTrade() {
+  let trade = {
+    date: date.value,
+    day: day.value,
+    underlying: underlying.value,
+    strike: strike.value,
+    qty: Number(qty.value),
+    buyPrice: Number(buyPrice.value),
+    buyTime: buyTime.value,
+    sellPrice: Number(sellPrice.value),
+    sellTime: sellTime.value
+  };
+
+  trade.cost = trade.buyPrice * trade.qty;
+  trade.pl = (trade.sellPrice - trade.buyPrice) * trade.qty;
+  trade.percent = trade.cost ? ((trade.pl / trade.cost) * 100).toFixed(2) : 0;
+  trade.hold = calcHoldTime(trade.buyTime, trade.sellTime);
+
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+  trades.push(trade);
+  localStorage.setItem("trades", JSON.stringify(trades));
+
+  displayTrades();
+}
+
+function displayTrades() {
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+  let table = document.getElementById("tradeTable");
+  table.innerHTML = "";
+
+  trades.forEach(t => {
+    table.innerHTML += `
+    <tr>
+      <td>${t.date}</td>
+      <td>${t.day}</td>
+      <td>${t.underlying}</td>
+      <td>${t.strike}</td>
+      <td>${t.qty}</td>
+      <td>${t.buyPrice}</td>
+      <td>${t.buyTime}</td>
+      <td>${t.cost}</td>
+      <td>${t.sellPrice}</td>
+      <td>${t.sellTime}</td>
+      <td>${t.hold}</td>
+      <td class="${t.pl>=0?'profit':'loss'}">${t.pl}</td>
+      <td class="${t.pl>=0?'profit':'loss'}">${t.percent}%</td>
+    </tr>`;
+  });
+}
+
+displayTrades();
+</script>
+
+</body>
+</html>
