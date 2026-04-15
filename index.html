@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Trading Journal - PRO</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .form, .table {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 5px;
+      border: none;
+    }
+
+    button {
+      padding: 10px;
+      background: #22c55e;
+      border: none;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 8px;
+      text-align: center;
+      border-bottom: 1px solid #334155;
+    }
+
+    .profit {
+      color: #22c55e;
+      font-weight: bold;
+    }
+
+    .loss {
+      color: #ef4444;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>📊 Trade Entry - PRO Journal</h1>
+
+<div class="form">
+
+  <label>Date</label>
+  <input type="date" id="date">
+
+  <label>Day</label>
+  <input type="text" id="day" readonly>
+
+  <label>Underlying</label>
+  <select id="underlying">
+    <option value="NIFTY">NIFTY</option>
+    <option value="SENSEX">SENSEX</option>
+  </select>
+
+  <label>Strike Price</label>
+  <input type="number" id="strike">
+
+  <label>Option Type</label>
+  <select id="type">
+    <option value="CE">Call (CE)</option>
+    <option value="PE">Put (PE)</option>
+  </select>
+
+  <label>Quantity</label>
+  <input type="number" id="qty">
+
+  <label>Buy Price</label>
+  <input type="number" id="buyPrice">
+
+  <label>Buy Time</label>
+  <input type="time" id="buyTime">
+
+  <label>Sell Price</label>
+  <input type="number" id="sellPrice">
+
+  <label>Sell Time</label>
+  <input type="time" id="sellTime">
+
+  <label>Stoploss</label>
+  <input type="number" id="sl">
+
+  <label>Strategy</label>
+  <input type="text" id="strategy">
+
+  <label>Remarks</label>
+  <textarea id="remarks"></textarea>
+
+  <button onclick="saveTrade()">Save Trade</button>
+
+</div>
+
+<div class="table">
+  <h2>📈 Trade Analytics</h2>
+
+  <table id="tradeTable">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Day</th>
+        <th>Underlying</th>
+        <th>Strike</th>
+        <th>Qty</th>
+        <th>Buy</th>
+        <th>Buy Time</th>
+        <th>Cost</th>
+        <th>Sell</th>
+        <th>Sell Time</th>
+        <th>Hold Time</th>
+        <th>P/L</th>
+        <th>%</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+</div>
+
+<script>
+
+function setTodayDate() {
+  let today = new Date();
+  let dateInput = document.getElementById("date");
+
+  let yyyy = today.getFullYear();
+  let mm = String(today.getMonth() + 1).padStart(2, '0');
+  let dd = String(today.getDate()).padStart(2, '0');
+
+  dateInput.value = `${yyyy}-${mm}-${dd}`;
+  updateDay();
+}
+
+function updateDay() {
+  let date = new Date(document.getElementById("date").value);
+  let day = date.toLocaleDateString('en-US', { weekday: 'long' });
+  document.getElementById("day").value = day;
+}
+
+document.getElementById("date").addEventListener("change", updateDay);
+
+setTodayDate();
+
+function calcHoldTime(buyTime, sellTime) {
+  let start = new Date(`1970-01-01T${buyTime}:00`);
+  let end = new Date(`1970-01-01T${sellTime}:00`);
+
+  let diff = (end - start) / 60000; // minutes
+  let hours = Math.floor(diff / 60);
+  let mins = diff % 60;
+
+  return `${hours}h ${mins}m`;
+}
+
+function saveTrade() {
+
+  let trade = {
+    date: date.value,
+    day: day.value,
+    underlying: underlying.value,
+    strike: strike.value,
+    qty: Number(qty.value),
+    buyPrice: Number(buyPrice.value),
+    buyTime: buyTime.value,
+    sellPrice: Number(sellPrice.value),
+    sellTime: sellTime.value,
+    strategy: strategy.value,
+    remarks: remarks.value
+  };
+
+  trade.cost = trade.buyPrice * trade.qty;
+  trade.pl = (trade.sellPrice - trade.buyPrice) * trade.qty;
+  trade.percent = ((trade.pl / trade.cost) * 100).toFixed(2);
+  trade.hold = calcHoldTime(trade.buyTime, trade.sellTime);
+
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+  trades.push(trade);
+  localStorage.setItem("trades", JSON.stringify(trades));
+
+  displayTrades();
+}
+
+function displayTrades() {
+
+  let trades = JSON.parse(localStorage.getItem("trades")) || [];
+  let tbody = document.querySelector("#tradeTable tbody");
+
+  tbody.innerHTML = "";
+
+  trades.forEach(t => {
+
+    let row = `<tr>
+      <td>${t.date}</td>
+      <td>${t.day}</td>
+      <td>${t.underlying}</td>
+      <td>${t.strike}</td>
+      <td>${t.qty}</td>
+      <td>${t.buyPrice}</td>
+      <td>${t.buyTime}</td>
+      <td>${t.cost}</td>
+      <td>${t.sellPrice}</td>
+      <td>${t.sellTime}</td>
+      <td>${t.hold}</td>
+      <td class="${t.pl >= 0 ? 'profit' : 'loss'}">${t.pl}</td>
+      <td class="${t.pl >= 0 ? 'profit' : 'loss'}">${t.percent}%</td>
+    </tr>`;
+
+    tbody.innerHTML += row;
+  });
+}
+
+displayTrades();
+
+</script>
+
+</body>
+</html>
